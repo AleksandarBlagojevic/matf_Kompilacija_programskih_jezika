@@ -1,0 +1,116 @@
+%{
+    #include <iostream>
+    #include <cstdlib>
+    #include <string>
+    #include <map>
+    #include "polinomi.hpp"
+    
+    using namespace std;
+    
+    void yyerror(string s){
+        cerr << s << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    extern int yylex();
+    
+    map<string, Polinom*> tablica;
+    
+%}
+
+%union{
+    double x;
+    string *s;
+    Polinom *p;
+}
+
+%token dodela_token jednako_token razlicito_token
+%token <x> num_token
+%token <s> id_token
+
+%type <p> PolinomN NizPolinoma
+
+%left '+' '-'
+%left '*'
+%left UMINUS
+%left '\'' '$'
+
+%%
+
+Program: Program Naredba '\n'
+    | Naredba '\n'
+    ;
+    
+Naredba: id_token dodela_token PolinomN {
+                                    tablica[*$1] = $3;
+                                    delete $1;
+                                }
+    | PolinomN                  {
+                                    cout << *$1;
+                                }
+    | PolinomN jednako_token PolinomN      {
+                                    if(*$1==*$3)
+                                        cout << "True\n";
+                                    else
+                                        cout << "False\n";
+                                }
+    | PolinomN razlicito_token PolinomN      {
+                                    if(*$1!=*$3)
+                                        cout << "True\n";
+                                    else
+                                        cout << "False\n";
+                                }
+    | PolinomN '[' num_token ']' {
+                                    cout << $1->vrednost($3) << endl;
+                                }
+    ;
+    
+PolinomN: PolinomN '+' PolinomN {
+                                    $$ = new Polinom((*$1)+(*$3));
+                                }
+    | PolinomN '-' PolinomN     {
+                                    $$ = new Polinom((*$1)-(*$3));
+                                }
+    | PolinomN '*' PolinomN     {
+                                    $$ = new Polinom((*$1)*(*$3));
+                                }
+    | '-' PolinomN %prec UMINUS  {
+                                    $$ = new Polinom($2->minus());
+                                }
+    | '(' PolinomN ')'          {
+                                    $$ = $2;
+                                }
+    | PolinomN '\''             {
+                                    $$ = new Polinom($1->izvod());
+                                }
+    | '$' PolinomN '|' num_token          {
+                                    $$ = new Polinom($2->integral($4));
+                                }
+    | id_token                  {
+                                    map<string, Polinom*>::iterator i = tablica.find(*$1);
+                                    if(i == tablica.end())
+                                        yyerror("Promenljiva "+ *$1 +"nije definisana");
+                                    $$ = tablica[*$1];
+                                    delete $1;
+                                }
+    | '<' NizPolinoma '>'       {
+                                    $$ = $2;
+                                }
+    ;
+    
+NizPolinoma: NizPolinoma ','  num_token   {
+                                    $$->dodaj_element($3);
+                                }
+    |   num_token               {
+                                    $$ = new Polinom();
+                                    $$->dodaj_element($1);
+                                }
+    ;
+
+%%
+
+int main(){
+    //yydebug=1;
+    yyparse();
+    exit(EXIT_SUCCESS);
+}
