@@ -1,0 +1,184 @@
+%{
+    #include <iostream>
+    #include <cstdlib>
+    #include <string>
+    #include <map>
+    
+    #define YYDEBUG 1
+    
+    using namespace std;
+    
+    #include "vektor.hpp"
+    #include "transformacija.hpp"
+    
+    // Funkcija za obradu greske
+    void yyerror(string s) {
+        cerr << s << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    // Leksicki analizator
+    extern int yylex();
+    
+    map<string, Vektor*> vektori;
+    map<string, Transformacija*> transformacije;
+
+%}
+
+
+%union{
+    double d;
+    string *s;
+    Vektor *v;
+    Transformacija* t;
+}
+
+%token vector_token print_token transformacija_token translacija_token rotacija_token homotetija_token
+%token <s> id_vektora_token id_transformacija_token
+%token <d> num_token
+
+%type <v> VektorN InicijalizacijaVektora IzrazVektora
+%type <t> TransformacijaN InicijalizacijaTransformacija IzrazTransformacija
+
+
+%left '+' '-'
+%left '*'
+
+
+%%
+
+Program: Program Naredba ';'
+    | Naredba ';'
+    ;
+    
+Naredba: vector_token NizVektora
+    | print_token IzrazVektora
+        {   cout << *$2 << endl; }
+    | id_vektora_token '=' IzrazVektora
+        {
+            map<string,Vektor*>::iterator i = vektori.find(*$1);
+            if(i == vektori.end())
+                yyerror("Promenljiva " + *$1 + " nije definisana");
+            delete i->second;
+            i->second = $3;
+            delete $1;
+        }
+    | transformacija_token NizTransformacija
+    | id_transformacija_token '=' IzrazTransformacija
+        {
+            map<string,Transformacija*>::iterator i = transformacije.find(*$1);
+            if(i == transformacije.end())
+                yyerror("Promenljiva " + *$1 + " nije definisana");
+            delete i->second;
+            i->second = $3;
+            delete $1;
+        }
+    ;
+    
+NizVektora: NizVektora ',' id_vektora_token InicijalizacijaVektora
+        {
+            vektori[*$3] = $4;
+            delete $3;
+        }
+    | id_vektora_token InicijalizacijaVektora
+        {
+            vektori[*$1] = $2;
+            delete $1;
+        }
+    ;
+    
+InicijalizacijaVektora: '=' IzrazVektora
+        {   $$ = $2;    }
+    |   
+        {   $$ = new Vektor();  }
+    ;
+    
+IzrazVektora: IzrazVektora '+' IzrazVektora
+        {   
+            $$ = new Vektor(*$1+*$3);
+            delete $1;
+            delete $3;
+        }
+    | IzrazVektora '-' IzrazVektora
+        {   
+            $$ = new Vektor(*$1-*$3);
+            delete $1;
+            delete $3;
+        }
+    | num_token '*' IzrazVektora
+        {   
+            *$3 = *$3 * $1;
+            $$ = $3;
+        }
+    | '(' IzrazVektora ')'
+        {   $$ = $2;    }
+    | VektorN
+        {   $$ = $1;    }
+    | id_vektora_token
+        {
+            map<string,Vektor*>::iterator i = vektori.find(*$1);
+            if(i == vektori.end())
+                yyerror("Promenljiva " + *$1 + " nije definisana");
+            $$ = new Vektor(*(i->second));
+            // Greska: $$ = i->second;
+            delete $1;
+        }
+    | IzrazTransformacija '(' IzrazVektora ')'
+        {
+            $$ = new Vektor($1->prebaci(*$3));
+            delete $1;
+            delete $3;
+        }
+    ;
+    
+VektorN: '[' num_token ',' num_token ']'
+        {   $$ = new Vektor($2,$4); }
+    ;
+    
+NizTransformacija: NizTransformacija ',' id_transformacija_token InicijalizacijaTransformacija
+        {
+            transformacije[*$3] = $4;
+            delete $3;
+        }
+    | id_transformacija_token InicijalizacijaTransformacija
+        {
+            transformacije[*$1] = $2;
+            delete $1;
+        }
+    ;
+    
+InicijalizacijaTransformacija: '=' IzrazTransformacija
+        {   $$ = $2;    }
+    |   
+        {   $$ = new Homotetija(1);  }
+    ;
+
+IzrazTransformacija: TransformacijaN
+        {   $$ = $1; }
+    | id_transformacija_token
+        {
+             map<string,Transformacija*>::iterator i = transformacije.find(*$1);
+            if(i == transformacije.end())
+                yyerror("Promenljiva " + *$1 + " nije definisana");
+            $$ = i->second->kopija();
+            // Greska: $$ = i->second;
+            delete $1;
+        }
+    | IzrazTransformacija '*' IzrazTransformacija
+        {   $$ = new Kompozicija($1,$3); }
+    ;
+    
+TransformacijaN: rotacija_token '(' num_token ')'
+        {   $$ = new Rotacija($3); }
+    | homotetija_token '(' num_token ')'
+        {   $$ = new Homotetija($3); }
+    ;
+
+%%
+
+
+int main() {
+  //yydebug = 1;
+  yyparse();
+  exit(EXIT_SUCCESS);
+}
