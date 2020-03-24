@@ -1,0 +1,45 @@
+%{
+    #include <iostream>
+    #include <cstdlib>
+    #include <string>
+    
+    #define YYDEBUG 1
+    
+    using namespace std;
+    
+    void yyerror(string poruka){
+        cerr << poruka << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    extern int yylex();
+    
+%}
+
+%token id_token presek_token unija_token akko_token sledi_token
+
+%left presek_token unija_token
+%left sledi_token akko_token
+%left '!'
+%%
+
+Program: Program E
+    | E 
+    ;
+    
+E: E presek_token E
+ | E unija_token E
+ | E sledi_token E
+ | E akko_token E
+ | '!' E
+ | '(' E ')'
+ | id_token
+ ;
+    
+%%
+
+int main(){
+    yydebug = 0;
+    yyparse();
+    return EXIT_SUCCESS;
+}
