@@ -1,0 +1,81 @@
+%{
+    #include <iostream>
+    #include <cstdlib>
+    #include <string>
+    #include <map>
+    
+    #define YYDEBUG 1
+    
+    using namespace std;
+    
+    void yyerror(string poruka){
+        cerr << poruka << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    extern int yylex();
+    
+    map<string, int> tablica;
+    
+%}
+
+%union{
+    int vrednost;
+    string *ime;
+}
+
+%token presek_token unija_token akko_token sledi_token dodela_token true_token false_token
+
+%token <ime> id_token
+
+%type <vrednost> E
+
+%left unija_token
+%left presek_token
+%left sledi_token akko_token
+%left '!'
+
+
+%%
+
+Program: Naredba '\n' Program
+    | 
+    ;
+    
+Naredba: E                      {
+                                    if($1)
+                                        cout << "True" << endl;
+                                    else
+                                        cout << "False" << endl;
+                                }
+    | id_token dodela_token E   {
+                                    tablica[*$1] = $3;
+                                    delete $1;
+                                }
+    ;
+    
+E: E presek_token E     {   $$ = ($1==1 && $3==1) ? 1 : 0;  }
+ | E unija_token E      {   $$ = ($1==0 && $3==0) ? 0 : 1;  }
+ | E sledi_token E      {   $$ = ($1==0 && $3==1) ? 0 : 1;  }
+ | E akko_token E       {   $$ = $1 == $3;  }
+ | '!' E                {   $$ = $2 == 1 ? 0 : 1; }
+ | '(' E ')'            {   $$ = $2;    }
+ | id_token             {
+                            map<string,int>::iterator i = tablica.find(*$1);
+                            if(i == tablica.end())
+                                yyerror("Promnljiva " + *$1 + " nije definisana.");
+                            $$ = i->second;
+                            delete $1;
+                        }
+ | true_token           {   }
+ | false_token          {   }
+ ;
+   
+    
+%%
+
+int main(){
+    yydebug = 0;
+    yyparse();
+    return EXIT_SUCCESS;
+}
