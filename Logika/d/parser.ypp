@@ -1,0 +1,84 @@
+%{
+    #include <iostream>
+    #include <cstdlib>
+    #include <string>
+    #include <map>
+    
+    #define YYDEBUG 1
+    
+    using namespace std;
+    
+    void yyerror(string poruka){
+        cerr << poruka << endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    extern int yylex();
+    
+    map<string, int> tablica;
+    
+%}
+
+%union{
+    int vrednost;
+    string *ime;
+}
+
+%token presek_token unija_token akko_token sledi_token dodela_token true_token false_token
+
+%token <ime> id_token
+
+%type <vrednost> E
+
+%left unija_token
+%left presek_token
+%left sledi_token akko_token
+%left '!'
+
+
+%%
+
+Program: Naredba '\n' Program
+    |
+    ;
+    
+Naredba: E                      {
+                                    if($1==1)
+                                        cout << "True" << endl;
+                                    else if($1==0)
+                                        cout << "False" << endl;
+                                    else
+                                        cout << "Undef" << endl;
+                                }
+    | id_token dodela_token E   {
+                                    tablica[*$1] = $3;
+                                    delete $1;
+                                }
+    ;
+    
+E: E presek_token E     {   $$ = ($1==0) ? 0 : $3;  }
+ | E unija_token E      {   $$ = ($1==1) ? 1 : $3;  }
+ | E sledi_token E      {   $$ = ($3==1 || $1==0) ? 1 : $3;  }
+ | E akko_token E       {   $$ = ($1==-1 || $3==-1) ? -1 : $1 == $3;  }
+ | '!' E                {   $$ = $2 == -1 ? -1 : ($2+1)%2; }
+ | '(' E ')'            {   $$ = $2;    }
+ | id_token             {
+                            map<string,int>::iterator i = tablica.find(*$1);
+                            if(i == tablica.end())
+                                $$ = -1;
+                            else
+                                $$ = i->second;
+                            delete $1;
+                        }
+ | true_token           {   }
+ | false_token          {   }
+ ;
+   
+    
+%%
+
+int main(){
+    yydebug = 0;
+    yyparse();
+    return EXIT_SUCCESS;
+}
