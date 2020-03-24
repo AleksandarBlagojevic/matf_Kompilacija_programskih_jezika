@@ -1,0 +1,141 @@
+%{
+#include <iostream>
+#include <cstdlib>
+#include <string>
+#include <math.h>
+#include <map>
+#include "function.hpp"
+
+/* za potrebe debagovanja */
+#define YYDEBUG 1
+
+using namespace std;
+
+/* funkcija za obradu gresaka */
+void yyerror(string message) {
+     cerr<<message<<endl;
+     exit(EXIT_FAILURE);
+}
+
+/* Leksicki analizator */
+extern int yylex();
+  
+ map<string, Funkcija*> tablica;
+
+
+%}
+
+/* Unija koja predstavlja tip atributa tokena i neterminala */
+%union {
+  float x;
+  string *s;
+  Funkcija *f;
+}
+
+/* Definisemo tokene i naglasavamo koji atribut ima token*/
+%token <x> num_token value_token sqrt_token sin_token cos_token function_token x_token
+%token <s> id_token
+
+/* Definisemo koji atribut imaju neterminali */
+%type <x> E
+%type <f> E1
+
+/* Navedemo prioritet i asocijativnost operatora */
+%left '+' '-'
+%left '*' '/'
+%left UMINUS
+%nonassoc '\''
+
+%%
+Program: Program Naredba
+| Naredba
+;
+
+Naredba: value_token '"' E '"'  '\n'{
+  cout<< $3 <<endl;
+ }
+| function_token id_token '=' '"' E1 '"' '\n'{
+  map<string, Funkcija*>::iterator i = tablica.find(*$2);
+  if (i!=tablica.end()) {
+    delete i->second;
+    i->second = $5;
+  }
+  else
+    tablica.insert(make_pair(*$2, $5));
+  delete $2;
+ }
+| id_token '\n' {
+  map<string, Funkcija*>::iterator i = tablica.find(*$1);
+  if (i==tablica.end())
+    yyerror("Funkcija nije definisana>");
+  i->second->print(cout);
+  cout<<endl;
+  delete $1;
+  }
+| id_token '\''  '\n'{
+ map<string, Funkcija*>::iterator i = tablica.find(*$1);
+  if (i==tablica.end())
+    yyerror("Funkcija nije definisana>");
+  Funkcija* prim = i->second->izvod();
+  prim->print(cout);
+  cout<<endl;
+  delete prim;
+  delete $1;
+}
+| id_token '[' num_token ']'  '\n' {
+  map<string, Funkcija*>::iterator i = tablica.find(*$1);
+  if (i==tablica.end())
+    yyerror("Funkcija nije definisana>");
+  cout<<i->second->vrednost($3)<<endl;  
+  delete $1;
+  }
+;
+
+E1 : E1 '+' E1              {
+  $$ = new Plus($1, $3);
+  delete $1;
+  delete $3;
+ }
+| E1 '*' E1                {
+  $$ = new Puta($1, $3);
+  delete $1;
+  delete $3; 
+  }
+| sin_token '(' E1 ')' 	 { $$ = new Sin($3);  delete $3; }
+| cos_token '(' E1 ')' 	 { $$ = new Cos($3);  delete $3; }
+| num_token              { $$ = new KonstantnaFunkcija($1); }
+| x_token                { $$ = new IdentickaFunkcija(); } 
+| E1 '\''                { $$ = $1->izvod(); delete $1; }
+| '(' E1 ')'             { $$ = $2; }
+;
+
+
+E : E '+' E              {
+                           $$ = $1 + $3;
+                         }
+| E '-' E                {
+                           $$ = $1 - $3;
+                         }
+| E '*' E                {
+                           $$ = $1 * $3;
+                         }
+| E '/' E                { 
+                           if ($3==0)
+			     yyerror("Devide by zero");
+			   $$ = $1/$3;
+                         }
+| '(' E ')'              { $$ = $2; }
+| '-' E    %prec UMINUS  { $$ = -$2; }
+| sqrt_token '(' E ')' 	 { $$ = sqrt($3); }
+| sin_token '(' E ')' 	 { $$ = sin($3); }
+| cos_token '(' E ')' 	 { $$ = cos($3); }
+| num_token              { $$ = $1; }
+;
+
+%%
+
+int main () {
+  // yydebug = 1;
+  yyparse();
+  return 0;
+}
