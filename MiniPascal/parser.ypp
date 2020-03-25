@@ -1,0 +1,161 @@
+%{
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include "izraz.hpp"
+#include "naredba.hpp"
+#include <vector>
+#include <map>
+#include <cstdio>
+#define YYDEBUG 1
+  using namespace std;
+
+  void yyerror(string s) {
+    cerr << s << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  int yylex();
+
+  map<string, int> tablica;
+  
+%}
+
+%nonassoc onda_token
+%nonassoc inace_token
+
+%left '<' '>'
+%left '+' '-'
+%left '*' '/' mod_token
+
+%union {
+  int d;
+  Izraz *i;
+  Naredba *n;
+  string *s;
+  vector<Naredba*> *v;
+}
+
+%token pocetak_token kraj_token ispisi_token mod_token dodela_token unesi_token ako_je_token onda_token inace_token radi_sledece_token dok_je_token
+%token <d> num_token
+%token <s> string_token id_token
+
+%type <i> E
+%type <n> NaredbaN BlokN
+%type <v> NizNaredbi
+
+%%
+Program: BlokN '.' {
+  $1->izvrsi();
+  delete $1;
+ }
+;
+BlokN : pocetak_token NizNaredbi kraj_token {
+  $$ = new Blok(*$2);
+  delete $2;
+ }
+;
+NizNaredbi: NizNaredbi ';' NaredbaN {
+  $$ = $1;
+  $$->push_back($3);
+ }
+| NaredbaN {
+  $$ = new vector<Naredba*>();
+  $$->push_back($1);
+ }
+;
+NaredbaN: ispisi_token '(' string_token ')' {
+  $$ = new IspisS(*$3);
+ }
+| ispisi_token '(' E ')' {
+  $$ = new IspisE($3);
+ }
+| id_token dodela_token E {
+  $$ = new Dodela(*$1, $3);
+  delete $1;
+ }
+| unesi_token '(' id_token ')' {
+  $$ = new Unos(*$3);
+  delete $3;
+  }
+| ako_je_token E onda_token NaredbaN inace_token NaredbaN {
+  $$ = new AkoJeOndaInace($2, $4, $6);
+ }
+| ako_je_token E onda_token NaredbaN  {
+  $$ = new AkoJeOnda($2, $4);
+ }
+| dok_je_token E radi_sledece_token NaredbaN {
+  $$ = new DokJe($2, $4);
+ }
+| BlokN {
+  $$ = $1;
+  }
+;
+E: E '+' E {
+  $$ = new Zbir($1, $3);
+  delete $1;
+  delete $3;
+ }
+| E '-' E {
+  $$ = new Razlika($1, $3);
+  delete $1;
+  delete $3;
+ }
+| E '*' E {
+  $$ = new Proizvod($1, $3);
+  delete $1;
+  delete $3;
+ }
+| E '/' E {
+  $$ = new Kolicnik($1, $3);
+  delete $1;
+  delete $3;
+ }
+| E mod_token E {
+  $$ = new Mod($1, $3);
+  delete $1;
+  delete $3;
+ }
+| E '<' E {
+  $$ = new Manje($1, $3);
+  delete $1;
+  delete $3;
+  }
+| E '>' E {
+  $$ = new Vece($1, $3);
+  delete $1;
+  delete $3;
+  }
+| '(' E ')' {
+  $$ = $2;
+ }
+| num_token {
+  $$ = new Konstanta($1);
+ }
+| id_token {
+  $$ = new Promenljiva(*$1);
+  delete $1;
+  }
+;
+%%
+
+extern FILE *yyin;
+
+int main(int argc, char **argv) {
+  if (argc != 2) {
+    yyerror("Greska:\n\tKoriscenje programa: ./pascal fajl");
+  }
+
+  if ((yyin = fopen(argv[1], "r")) == NULL)
+    yyerror("Greska pri otvaranju fajla");
+
+
+  //yydebug = 1;
+  yyparse();
+
+  fclose(yyin);
+  
+  return 0;
+}
+  
+
