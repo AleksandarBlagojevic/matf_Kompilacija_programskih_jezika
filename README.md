@@ -8,9 +8,9 @@ Da biste mogli da kompajlirate, najpre morate instalirati Flex i Bison.
 
 Komande za instalaciju na Ubuntu:
 		
-		+ sudo apt-get update
-		+ sudo apt-get upgrade
-		+ sudo apt-get install flex bison
+		$sudo apt-get update
+		$sudo apt-get upgrade
+		$sudo apt-get install flex bison
 
 Radi lakse kompilacije, potrebno je napraviti Makefile(makefile).
 Primer makefile-a:
