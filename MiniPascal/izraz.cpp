@@ -100,28 +100,3 @@ int Vece::vrednost() const {
 Izraz* Vece::kopija() const {
   return new Vece(*this);
 }
-
-/*
-int main() {
-
-  tablica["x"] = 1;
-  tablica["y"] = 2;
-  
-  Izraz *i1 = new Konstanta(3);
-  
-  cout << i1->vrednost() << endl;
-
-  Izraz *i2 = new Promenljiva("x");
-
-  cout << i2->vrednost() << endl;
-
-  Izraz *i3 = new Zbir(i1, i2);
-  cout << i3->vrednost() << endl;
-  
-  delete i1;
-  delete i2;
-  delete i3;
-  
-  return 0;
-}
-*/
